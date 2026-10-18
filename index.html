@@ -157,6 +157,8 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
 .cls-sum{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline}
 .cls-sum .big{font-family:var(--f-display);font-size:26px;font-weight:700}
 .cls-sum .big.good{color:var(--good)} .cls-sum .big.bad{color:var(--bias)}
+.claim{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--samp);border-radius:10px;padding:14px 16px;font-size:16px;max-width:75ch}
+.claim b{font-family:var(--f-display)}
 .decision{font-size:15px;border-left:3px solid var(--dist);padding:4px 0 4px 12px;max-width:68ch}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -172,6 +174,7 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
   <button type="button" role="tab" id="tabbtn-dist" aria-controls="tab-dist" aria-selected="true">Sampling distribution</button>
   <button type="button" role="tab" id="tabbtn-ci" aria-controls="tab-ci" aria-selected="false">My confidence interval</button>
   <button type="button" role="tab" id="tabbtn-class" aria-controls="tab-class" aria-selected="false">Class intervals</button>
+  <button type="button" role="tab" id="tabbtn-test" aria-controls="tab-test" aria-selected="false">Mean resale price</button>
   <button type="button" role="tab" id="tabbtn-chi" aria-controls="tab-chi" aria-selected="false">Floor level vs price</button>
 </nav>
 
@@ -436,6 +439,63 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
       <li>Copy the link it gives you and paste it above, then click <b>Load responses</b>. Tick auto-refresh to watch intervals arrive during class.</li>
     </ol>
     <p class="hint">Loading from a link works when this page is opened from GitHub Pages. Inside the Claude preview, use the paste box instead. Published data is public to anyone with the link, so ask students for a first name or nickname rather than a student number.</p>
+  </section>
+</div>
+
+<div class="tabpane" id="tab-test" role="tabpanel" aria-labelledby="tabbtn-test" hidden>
+  <p class="claim"><b>The claim.</b> A property analyst claims that the mean resale price of all HDB flats transacted in Singapore in 2025 is <b>$650,000</b>.</p>
+  <p class="lede">We cannot check every flat, so we draw a random sample and ask: if the claim were true, how surprising would our sample mean be? Because the analyst could be wrong in <b>either direction</b>, too high or too low, we use a <b>two-tailed</b> test.</p>
+
+  <section class="panel">
+    <div class="phead"><h2>Hypotheses</h2><span class="eyebrow" style="text-transform:none;letter-spacing:.02em">two-tailed · α = 0.05</span></div>
+    <div class="tablewrap"><table class="hyp"><tbody>
+      <tr><th scope="row">Null hypothesis H₀</th><td>μ = $650,000. The mean resale price of all HDB flats transacted in Singapore in 2025 is $650,000.</td></tr>
+      <tr><th scope="row">Alternative hypothesis H₁</th><td>μ ≠ $650,000. The mean resale price of all HDB flats transacted in Singapore in 2025 is not $650,000.</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <section class="controls" aria-label="Sample for the test">
+    <div class="ctl">
+      <label for="tsN">Sample size n</label>
+      <div class="nrow">
+        <input id="tsN" type="number" min="2" max="25085" step="1" value="1000" inputmode="numeric">
+        <div class="seg" id="tsNSeg"></div>
+      </div>
+      <span class="hint">Simple random sample, drawn with replacement.</span>
+    </div>
+    <div class="ctl">
+      <span class="lab">Sample</span>
+      <div class="rowbtns"><button type="button" class="btn primary" id="tsDraw">Draw a new sample</button></div>
+    </div>
+  </section>
+
+  <div class="chi-grid">
+    <section class="panel samp">
+      <div class="phead"><h2>Your sample</h2><span class="eyebrow" id="tsTag"></span></div>
+      <canvas id="cvTsSamp" height="200" aria-label="Histogram of the sample with the claimed mean"></canvas>
+      <div class="legend"><span><i class="sw line" style="border-color:var(--samp)"></i>sample mean x̄</span><span><i class="sw dash" style="border-color:var(--ink)"></i>claimed mean $650,000</span></div>
+      <div class="tablewrap" id="tsSummary"></div>
+      <div class="rowbtns"><button type="button" class="btn" id="exTs">Download my sample (CSV)</button><span class="hint" id="exTsMsg" role="status" aria-live="polite"></span></div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>One-sample t-test</h2><span class="eyebrow" style="text-transform:none;letter-spacing:.02em">μ₀ = $650,000</span></div>
+      <ol class="steps" id="tsSteps"></ol>
+      <div class="col" style="gap:6px"><h3>p-value on the t-distribution (df = <span id="tsDf"></span>)</h3>
+        <canvas id="cvTsCurve" height="230" aria-label="t-distribution with both tails shaded"></canvas>
+        <div class="legend"><span><i class="sw" style="background:var(--dist)"></i>p-value: area in both tails beyond ±|t|</span><span><i class="sw dash" style="border-color:var(--bias)"></i>critical values ±t* (α = 0.05)</span></div>
+      </div>
+      <p class="decision" id="tsDecision"></p>
+      <p class="hint" id="tsCI"></p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h3>Think about it</h3>
+    <details><summary>Why is this a two-tailed test?</summary><p>The analyst's claim is wrong if the true mean is higher than $650,000 or lower than it. A sample mean far out in either tail counts as evidence against H₀, so the p-value adds the area in both tails.</p></details>
+    <details><summary>If we do not reject H₀, does that prove the analyst is right?</summary><p>No. It only means the sample is consistent with $650,000. In this dataset the true mean is actually $652,522. The difference is so small compared with the standard error that most samples cannot detect it. "Not rejecting" is not the same as "accepting".</p></details>
+    <details><summary>How does this connect to the 95% confidence interval?</summary><p>For a two-tailed test at α = 0.05, we reject H₀ exactly when $650,000 lies outside the 95% confidence interval x̄ ± t* × SE. Check the line under the conclusion for your sample.</p></details>
+    <details><summary>Try n = 30 a few times. What changes?</summary><p>The standard error is much larger, so t values stay small and the p-value is usually large. The t* critical value also grows (2.045 for df = 29), so the rejection regions move further out.</p></details>
+    <details><summary>What would a Type I error be here?</summary><p>Rejecting H₀ when the mean really is $650,000. With α = 0.05, this happens in about 5% of samples when H₀ is true.</p></details>
   </section>
 </div>
 
@@ -1258,11 +1318,107 @@ $("clsAuto").onchange = e => {
   K.rows = demoRows(); K.source = "demo";
 })();
 
+/* ---------- Tab: testing a claim (two-tailed one-sample t-test) ---------- */
+const MU0 = 650000;
+const T = { n:1000, idx:null };
+function betacf(a,b,x){ const MAXIT=300, EPS=3e-14, FPMIN=1e-300; let qab=a+b, qap=a+1, qam=a-1, c=1, d=1-qab*x/qap; if (Math.abs(d)<FPMIN) d=FPMIN; d=1/d; let h=d;
+  for (let m=1;m<=MAXIT;m++){ const m2=2*m; let aa=m*(b-m)*x/((qam+m2)*(a+m2)); d=1+aa*d; if (Math.abs(d)<FPMIN) d=FPMIN; c=1+aa/c; if (Math.abs(c)<FPMIN) c=FPMIN; d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2)); d=1+aa*d; if (Math.abs(d)<FPMIN) d=FPMIN; c=1+aa/c; if (Math.abs(c)<FPMIN) c=FPMIN; d=1/d; const del=d*c; h*=del; if (Math.abs(del-1)<EPS) break; }
+  return h; }
+function ibeta(x,a,b){ if (x<=0) return 0; if (x>=1) return 1;
+  const bt = Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x < (a+1)/(a+b+2) ? bt*betacf(a,b,x)/a : 1 - bt*betacf(b,a,1-x)/b; }
+const tTwoTail = (t, df) => ibeta(df/(df+t*t), df/2, 0.5);   // P(|T| >= |t|)
+function tsStats(){
+  const vals = Array.from(T.idx, i => D.price[i]), n = vals.length;
+  const xbar = mean(vals); let ss=0; for (const v of vals) ss += (v-xbar)**2;
+  const s = Math.sqrt(ss/(n-1)), se = s/Math.sqrt(n), df = n-1, tc = tcrit(df), tstat = (xbar-MU0)/se;
+  return {vals, n, xbar, s, se, df, tc, t:tstat, p:tTwoTail(tstat, df), L:xbar-tc*se, U:xbar+tc*se};
+}
+function drawTsSamp(R){
+  const cv=$("cvTsSamp"); const {ctx,w,h}=prep(cv); const B=popBins("mean_price"), bw=STATS.mean_price.bw;
+  const fr = bins(R.vals, B.lo, bw, B.nb); const ymax = Math.max(...fr)*1.2;
+  const f = frame(ctx,w,h,B.lo,B.hi,ymax,kaxis,pctAxis,{t:28});
+  const samp=css("--samp"), sampSoft=css("--samp-soft"), ink=css("--ink");
+  for (let i=0;i<B.nb;i++){ const x0=f.X(B.lo+i*bw), x1=f.X(B.lo+(i+1)*bw); ctx.fillStyle=sampSoft; ctx.fillRect(x0+.5,f.Y(fr[i]),Math.max(1,x1-x0-1),f.Y(0)-f.Y(fr[i])); }
+  ctx.save(); ctx.strokeStyle=ink; ctx.lineWidth=1.5; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(f.X(MU0), 8); ctx.lineTo(f.X(MU0), f.Y(0)); ctx.stroke(); ctx.restore();
+  const right = f.X(R.xbar) >= f.X(MU0);
+  vline(ctx, f.X(R.xbar), 6, f.Y(0), samp, null, "x̄ = "+kfmt(R.xbar), right ? "left" : "right");
+  ctx.fillStyle=ink; ctx.font="500 11px "+css("--f-mono"); ctx.textBaseline="top"; ctx.textAlign = right ? "right" : "left";
+  ctx.fillText("$650k", f.X(MU0) + (right ? -5 : 5), 6);
+}
+function drawTsCurve(R){
+  const cv=$("cvTsCurve"); const {ctx,w,h}=prep(cv);
+  const at = Math.abs(R.t), tc = R.tc, off = at > 6;
+  const xr = off ? 4.5 : Math.max(4, Math.ceil(at + 1));
+  const f = frame(ctx,w,h,-xr,xr,0.45,v=>String(v),v=>v.toFixed(1),{t:44,l:36});
+  const base=f.Y(0), ink=css("--ink"), dist=css("--dist"), bias=css("--bias"), muted=css("--muted"), surf=css("--surface");
+  const yAt = x => f.Y(tpdf(x, R.df));
+  if (!off){
+    ctx.fillStyle=dist; ctx.globalAlpha=.55;
+    for (const side of [-1,1]){ ctx.beginPath(); const a = side*at, b = side*xr; ctx.moveTo(f.X(a), base);
+      for (let k=0;k<=200;k++){ const x = a + (b-a)*k/200; ctx.lineTo(f.X(x), yAt(x)); } ctx.lineTo(f.X(b), base); ctx.closePath(); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+  ctx.strokeStyle=ink; ctx.lineWidth=2; ctx.beginPath();
+  for (let k=0;k<=600;k++){ const x=-xr+2*xr*k/600; k ? ctx.lineTo(f.X(x),yAt(x)) : ctx.moveTo(f.X(x),yAt(x)); } ctx.stroke();
+  ctx.font="500 11px "+css("--f-mono"); ctx.textBaseline="bottom";
+  for (const s of [-1,1]){ const x=f.X(s*tc); ctx.save(); ctx.strokeStyle=bias; ctx.lineWidth=1.5; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(x, f.pad.t-8); ctx.lineTo(x, base); ctx.stroke(); ctx.restore();
+    ctx.fillStyle=bias; ctx.textAlign = s<0 ? "right" : "left"; ctx.fillText((s<0?"−":"+")+tc.toFixed(3), x + (s<0?-4:4), f.pad.t-10); }
+  if (!off){
+    const xt = f.X(R.t), xm = f.X(-R.t);
+    ctx.strokeStyle=dist; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(xt, f.pad.t-26); ctx.lineTo(xt, base); ctx.stroke();
+    ctx.save(); ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(xm, f.pad.t+4); ctx.lineTo(xm, base); ctx.stroke(); ctx.restore();
+    ctx.fillStyle=dist; ctx.font="600 12px "+css("--f-body"); ctx.textBaseline="bottom"; ctx.textAlign = R.t >= 0 ? "left" : "right";
+    ctx.fillText(`t = ${R.t.toFixed(3)}`, xt + (R.t>=0?6:-6), f.pad.t-28);
+    const lab = `p-value = ${pfmt(R.p)} (both tails)`; ctx.font="600 12.5px "+css("--f-body"); const tw=ctx.measureText(lab).width;
+    const lx = Math.max(f.pad.l+4, Math.min(w-16-tw, f.X(0) - tw/2)), ly = f.pad.t + 18;
+    ctx.fillStyle=surf; ctx.fillRect(lx-4, ly-10, tw+8, 20); ctx.fillStyle=dist; ctx.textAlign="left"; ctx.textBaseline="middle"; ctx.fillText(lab, lx, ly);
+  } else {
+    ctx.fillStyle=dist; ctx.font="600 12px "+css("--f-body"); ctx.textAlign = R.t>0 ? "right" : "left"; ctx.textBaseline="middle";
+    const xx = R.t>0 ? w-14 : f.pad.l+6;
+    ctx.fillText(R.t>0 ? `t = ${R.t.toFixed(2)} is far off the chart →` : `← t = ${R.t.toFixed(2)} is far off the chart`, xx, f.pad.t+14);
+    ctx.fillStyle=muted; ctx.font="500 11.5px "+css("--f-body"); ctx.fillText(`The area beyond it is tiny: p-value ${pfmt(R.p)}`, xx, f.pad.t+32);
+  }
+  ctx.fillStyle=muted; ctx.font="11px "+css("--f-body"); ctx.textAlign="right"; ctx.textBaseline="bottom"; ctx.fillText("t value", w-12, base-4);
+}
+function renderTest(){
+  if (!T.idx) return;
+  const R = tsStats();
+  $("tsTag").textContent = `n = ${nf.format(R.n)} flats`; $("tsDf").textContent = nf.format(R.df);
+  drawTsSamp(R); drawTsCurve(R);
+  $("tsSummary").innerHTML = `<table class="ct"><tbody>
+    <tr><td>Sample size n</td><td>${nf.format(R.n)}</td></tr>
+    <tr><td>Sample mean x̄</td><td>${money2(R.xbar)}</td></tr>
+    <tr><td>Sample SD s</td><td>${money2(R.s)}</td></tr>
+    <tr><td>Claimed mean μ₀</td><td>${money(MU0)}</td></tr>
+    <tr><td>Difference x̄ − μ₀</td><td>${(R.xbar-MU0>=0?"+":"−")+money2(Math.abs(R.xbar-MU0))}</td></tr></tbody></table>`;
+  const tc = R.tc.toFixed(3);
+  $("tsSteps").innerHTML =
+      step(1, "Standard error", `SE = s / √n = ${money2(R.s)} / √${nf.format(R.n)}`, money2(R.se))
+    + step(2, "Test statistic", `t = (x̄ − μ₀) / SE = (${money2(R.xbar)} − ${money(MU0)}) / ${money2(R.se)}`, R.t.toFixed(3))
+    + step(3, "Degrees of freedom", `df = n − 1 = ${nf.format(R.n)} − 1`, nf.format(R.df))
+    + step(4, "p-value (two-tailed)", `p = 2 × P(T ≥ ${Math.abs(R.t).toFixed(3)}) with df = ${nf.format(R.df)}. Critical values at α = 0.05 are ±${tc}.`, pfmt(R.p), "final");
+  const sig = R.p < 0.05;
+  $("tsDecision").innerHTML = sig
+    ? `Since p &lt; 0.05, there is sufficient evidence to reject the null hypothesis. The mean resale price of all HDB flats transacted in Singapore in 2025 is not $650,000.`
+    : `Since p ≥ 0.05, there is insufficient evidence to reject the null hypothesis. We cannot conclude that the mean resale price of all HDB flats transacted in Singapore in 2025 is different from $650,000.`;
+  const inside = R.L <= MU0 && MU0 <= R.U;
+  $("tsCI").innerHTML = `Check with the 95% confidence interval: ${money(R.L)} to ${money(R.U)}. The claimed $650,000 is <b>${inside ? "inside" : "outside"}</b> the interval, which agrees with the decision to ${inside ? "not reject" : "reject"} H₀.`;
+  for (const b of $("tsNSeg").children) b.setAttribute("aria-pressed", +b.dataset.n===T.n ? "true":"false");
+}
+for (const n of [30,100,1000,5000]){ const b=document.createElement("button"); b.type="button"; b.id="tsn-"+n; b.dataset.n=n; b.textContent=nf.format(n); b.onclick=()=>tsSetN(n); $("tsNSeg").appendChild(b); }
+function tsSetN(n){ n=Math.round(n); if(!(n>=2)) n=2; if(n>N) n=N; $("tsN").value=n; T.n=n; T.idx=sampleIdx(FRAMES.srs,n); renderTest(); }
+$("tsN").addEventListener("change", e=>tsSetN(+e.target.value));
+$("tsDraw").onclick = () => { T.idx = sampleIdx(FRAMES.srs, T.n); $("exTsMsg").textContent = ""; renderTest(); };
+$("exTs").onclick = () => { if (T.idx) exportCSV(`my_hdb_sample_test_n${T.n}.csv`, sampleCSV(T.idx), "exTsMsg"); };
+T.idx = sampleIdx(FRAMES.srs, T.n);
+
 /* ---------- tabs ---------- */
 let ACTIVE = "dist";
 function showTab(name){
   ACTIVE = name;
-  for (const k of ["dist","ci","chi","class"]){ $("tab-"+k).hidden = k!==name; $("tabbtn-"+k).setAttribute("aria-selected", k===name ? "true":"false"); }
+  for (const k of ["dist","ci","chi","class","test"]){ $("tab-"+k).hidden = k!==name; $("tabbtn-"+k).setAttribute("aria-selected", k===name ? "true":"false"); }
   try { history.replaceState(null, "", "#" + (name==="dist" ? "sampling" : name)); } catch(e){}
   rerender();
 }
@@ -1270,16 +1426,17 @@ $("tabbtn-dist").onclick = () => showTab("dist");
 $("tabbtn-ci").onclick = () => showTab("ci");
 $("tabbtn-chi").onclick = () => showTab("chi");
 $("tabbtn-class").onclick = () => showTab("class");
-function rerender(){ if (ACTIVE==="ci") renderCI(); else if (ACTIVE==="chi") renderChi(); else if (ACTIVE==="class") renderClass(); else renderAll(); }
+$("tabbtn-test").onclick = () => showTab("test");
+function rerender(){ if (ACTIVE==="ci") renderCI(); else if (ACTIVE==="chi") renderChi(); else if (ACTIVE==="class") renderClass(); else if (ACTIVE==="test") renderTest(); else renderAll(); }
 
 let rt; const later = ()=>{ clearTimeout(rt); rt=setTimeout(rerender,60); };
 window.addEventListener("resize", later);
-if (window.ResizeObserver){ const ro = new ResizeObserver(later); ro.observe($("cvDist")); ro.observe($("cvCILine")); ro.observe($("cvMosO")); ro.observe($("cvChiCurve")); ro.observe($("cvClass")); }
+if (window.ResizeObserver){ const ro = new ResizeObserver(later); ro.observe($("cvDist")); ro.observe($("cvCILine")); ro.observe($("cvMosO")); ro.observe($("cvChiCurve")); ro.observe($("cvClass")); ro.observe($("cvTsCurve")); }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
 new MutationObserver(rerender).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerender);
 C.idx = sampleIdx(FRAMES.srs, C.n);
-showTab({"#ci":"ci", "#chi":"chi", "#class":"class"}[location.hash] || "dist");
+showTab({"#ci":"ci", "#chi":"chi", "#class":"class", "#test":"test"}[location.hash] || "dist");
 </script>
 
 </body>
