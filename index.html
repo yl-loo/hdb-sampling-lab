@@ -149,6 +149,14 @@ table.hyp th,table.hyp td{white-space:normal;padding:10px 12px;vertical-align:to
 table.hyp th{font-family:var(--f-display);font-size:14.5px;color:var(--ink);width:15em}
 table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
 @media (max-width:600px){table.hyp th{width:auto}}
+.cls-src{display:flex;flex-direction:column;gap:10px}
+.cls-src .urlrow{display:flex;gap:8px;flex-wrap:wrap}
+.cls-src input[type=url]{flex:1 1 320px;min-width:0;font:inherit;font-family:var(--f-mono);font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
+.cls-src textarea{width:100%;min-height:110px;font-family:var(--f-mono);font-size:12.5px;padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);resize:vertical}
+.badge.demo{color:var(--samp)}
+.cls-sum{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline}
+.cls-sum .big{font-family:var(--f-display);font-size:26px;font-weight:700}
+.cls-sum .big.good{color:var(--good)} .cls-sum .big.bad{color:var(--bias)}
 .decision{font-size:15px;border-left:3px solid var(--dist);padding:4px 0 4px 12px;max-width:68ch}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -164,6 +172,7 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
   <button type="button" role="tab" id="tabbtn-dist" aria-controls="tab-dist" aria-selected="true">Sampling distribution</button>
   <button type="button" role="tab" id="tabbtn-ci" aria-controls="tab-ci" aria-selected="false">My confidence interval</button>
   <button type="button" role="tab" id="tabbtn-chi" aria-controls="tab-chi" aria-selected="false">Floor level vs price</button>
+  <button type="button" role="tab" id="tabbtn-class" aria-controls="tab-class" aria-selected="false">Class intervals</button>
 </nav>
 
 <div class="tabpane" id="tab-dist" role="tabpanel" aria-labelledby="tabbtn-dist">
@@ -381,6 +390,52 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
     <details><summary>Try n = 200 a few times. What goes wrong?</summary><p>Only about 5 high-floor million-dollar flats are expected, and in many samples the smallest expected count drops below 5. The chi-square approximation is not reliable when expected counts are that small, so we need a bigger sample.</p></details>
     <details><summary>Does a significant result prove high floors cause higher prices?</summary><p>No. The test shows an association. Other variables could explain it: high-floor flats tend to be newer, larger, or in more central towns. Association is not causation.</p></details>
     <details><summary>Why does the test on all 25,085 flats give such a huge χ²?</summary><p>χ² grows with sample size for the same pattern. With the whole population there is no sampling uncertainty to test; the table itself tells us the association exists. Tests are for drawing conclusions about a population from a sample.</p></details>
+  </section>
+</div>
+
+<div class="tabpane" id="tab-class" role="tabpanel" aria-labelledby="tabbtn-class" hidden>
+  <p class="lede">Every student draws their own sample in <b>My confidence interval</b> and submits their 95% interval. Here all the intervals are drawn on one number line. About 95% of them should capture the population mean μ.</p>
+
+  <section class="panel">
+    <div class="phead"><h2>Class responses</h2><span id="clsBadge"></span></div>
+    <div class="cls-src">
+      <label class="lab" for="clsUrl" style="font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Published Google Sheet link (CSV)</label>
+      <div class="urlrow">
+        <input id="clsUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" autocomplete="off" spellcheck="false">
+        <button type="button" class="btn primary" id="clsLoad">Load responses</button>
+        <button type="button" class="btn" id="clsDemo">Show example class</button>
+      </div>
+      <div class="checks"><label><input type="checkbox" id="clsAuto"> Refresh every 15 seconds while this tab is open</label></div>
+      <p class="hint" id="clsStatus" role="status" aria-live="polite"></p>
+      <details><summary>Or paste the responses instead</summary>
+        <p class="hint">Copy the response columns from your sheet, including the header row, and paste them here. Tab- or comma-separated both work.</p>
+        <textarea id="clsPaste" placeholder="Timestamp	Name	Sample size n	Lower bound	Upper bound"></textarea>
+        <div class="rowbtns" style="margin-top:8px"><button type="button" class="btn" id="clsUsePaste">Use pasted data</button></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel dist">
+    <div class="phead"><h2>All 95% confidence intervals</h2><span class="eyebrow" id="clsTag"></span></div>
+    <div class="cls-sum" id="clsSum"></div>
+    <div class="checks" style="flex-direction:row;flex-wrap:wrap;gap:6px 18px">
+      <label><input type="checkbox" id="clsShowMu" checked> Show μ and colour by whether each interval captures it</label>
+      <label><input type="checkbox" id="clsSort"> Sort by sample mean</label>
+    </div>
+    <canvas id="cvClass" height="420" aria-label="All class confidence intervals on one number line"></canvas>
+    <div class="legend" id="clsLegend"></div>
+    <p class="hint" id="clsSkipped"></p>
+  </section>
+
+  <section class="panel">
+    <h3>Setting up the class form</h3>
+    <ol class="learn-ol" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch">
+      <li>Create a Google Form with short-answer questions titled <b>Name</b> (optional), <b>Sample size n</b>, <b>Lower bound</b> and <b>Upper bound</b>. The page finds the columns by the words "lower" and "upper", so keep those in the question titles.</li>
+      <li>In the form's <b>Responses</b> tab, click <b>Link to Sheets</b>.</li>
+      <li>In the sheet, choose <b>File → Share → Publish to web</b>. Pick the responses sheet, choose <b>Comma-separated values (.csv)</b>, and click <b>Publish</b>.</li>
+      <li>Copy the link it gives you and paste it above, then click <b>Load responses</b>. Tick auto-refresh to watch intervals arrive during class.</li>
+    </ol>
+    <p class="hint">Loading from a link works when this page is opened from GitHub Pages. Inside the Claude preview, use the paste box instead. Published data is public to anyone with the link, so ask students for a first name or nickname rather than a student number.</p>
   </section>
 </div>
 
@@ -1060,27 +1115,171 @@ $("chiDraw").onclick = () => { Q.idx = sampleIdx(FRAMES.srs, Q.n); renderChi(); 
 for (const b of $("chiModeSeg").children) b.onclick = () => { Q.mode = b.dataset.m; renderChi(); };
 Q.idx = sampleIdx(FRAMES.srs, Q.n);
 
+/* ---------- Tab 4: class intervals ---------- */
+const CLASS_CSV_URL = "";   // optional: paste your published Google Sheet CSV link here to preload it for students
+const K = { rows:[], source:"demo", skipped:0, timer:null, lastLoad:null };
+function parseDelimited(text){
+  text = text.replace(/\r\n?/g, "\n").trim();
+  if (!text) return [];
+  const first = text.split("\n")[0];
+  const delim = (first.match(/\t/g)||[]).length > (first.match(/,/g)||[]).length ? "\t" : ",";
+  const out = []; let row = [], cell = "", q = false;
+  for (let i=0;i<text.length;i++){
+    const ch = text[i];
+    if (q){ if (ch === '"'){ if (text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim){ row.push(cell); cell = ""; }
+    else if (ch === "\n"){ row.push(cell); out.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  row.push(cell); out.push(row);
+  return out;
+}
+function toNum(s){
+  if (s == null) return NaN;
+  let v = String(s).trim().toLowerCase().replace(/s\$|\$|,|\s/g, "");
+  let mult = 1; if (v.endsWith("k")){ mult = 1e3; v = v.slice(0,-1); } else if (v.endsWith("m")){ mult = 1e6; v = v.slice(0,-1); }
+  const x = parseFloat(v); return isFinite(x) ? x*mult : NaN;
+}
+function rowsFromTable(tbl){
+  if (tbl.length < 2) throw new Error("No responses found yet. The sheet needs a header row and at least one response.");
+  const head = tbl[0].map(h => h.trim().toLowerCase());
+  const li = head.findIndex(h => h.includes("lower")), ui = head.findIndex(h => h.includes("upper"));
+  if (li < 0 || ui < 0) throw new Error('Could not find the "Lower" and "Upper" columns. Check that the question titles include the words lower and upper.');
+  const ni = head.findIndex(h => h.includes("name") || h.includes("nickname"));
+  const nn = head.findIndex(h => h === "n" || h.includes("sample size"));
+  const rows = []; let skipped = 0;
+  for (const r of tbl.slice(1)){
+    if (r.every(c => !String(c).trim())) continue;
+    let L = toNum(r[li]), U = toNum(r[ui]);
+    if (!isFinite(L) || !isFinite(U)){ skipped++; continue; }
+    if (L > U){ const tmp = L; L = U; U = tmp; }
+    if (L < 1e4 && U < 1e4){ L *= 1000; U *= 1000; }        // typed in thousands, e.g. 644.4
+    if (U - L <= 0 || U - L > 1e6 || L < 1e5 || U > 3e6){ skipped++; continue; }
+    rows.push({L, U, name: ni >= 0 ? String(r[ni]).trim() : "", n: nn >= 0 ? toNum(r[nn]) : NaN});
+  }
+  return {rows, skipped};
+}
+function demoRows(){
+  const rows = [];
+  for (let k=0;k<40;k++){
+    const idx = sampleIdx(FRAMES.srs, 1000); const vals = Array.from(idx, i => D.price[i]);
+    const m = mean(vals); let ss=0; for (const v of vals) ss += (v-m)**2;
+    const se = Math.sqrt(ss/(vals.length-1))/Math.sqrt(vals.length), me = tcrit(vals.length-1)*se;
+    rows.push({L:m-me, U:m+me, name:"Example "+(k+1), n:1000});
+  }
+  return rows;
+}
+function setClassData(rows, source, skipped){ K.rows = rows; K.source = source; K.skipped = skipped||0; renderClass(); }
+function clsStatus(s){ $("clsStatus").textContent = s; }
+async function loadClassCSV(){
+  const url = $("clsUrl").value.trim();
+  if (!url){ clsStatus("Paste the published CSV link first."); return; }
+  try { localStorage.setItem("hdbClassUrl", url); } catch(e){}
+  clsStatus("Loading responses…");
+  try {
+    const res = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(), {cache:"no-store"});
+    if (!res.ok) throw new Error(`The link answered with an error (${res.status}). Check that the sheet is published to the web as CSV.`);
+    const txt = await res.text();
+    if (/^\s*</.test(txt)) throw new Error("That link returned a web page, not CSV. In Publish to web, choose Comma-separated values (.csv) and copy the new link.");
+    const {rows, skipped} = rowsFromTable(parseDelimited(txt));
+    K.lastLoad = new Date();
+    setClassData(rows, "sheet", skipped);
+    clsStatus(`Loaded ${rows.length} interval${rows.length===1?"":"s"} at ${K.lastLoad.toLocaleTimeString("en-SG",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}.`);
+  } catch(e){
+    clsStatus((e && e.message && !/Failed to fetch|NetworkError|Load failed/i.test(e.message)) ? e.message : "Could not reach that link from here. Open this page from GitHub Pages, or use the paste box below.");
+  }
+}
+function drawClass(){
+  const cv = $("cvClass"), rows = K.rows.slice();
+  if ($("clsSort").checked) rows.sort((a,b)=>(a.L+a.U)-(b.L+b.U));
+  const m = rows.length, mu = POP.mean_price.theta, showMu = $("clsShowMu").checked;
+  const rowH = m > 120 ? 6 : m > 60 ? 9 : m > 30 ? 12 : 16;
+  cv.dataset.h = String(Math.max(180, 44 + m*rowH + 36));
+  const {ctx,w,h} = prep(cv);
+  const muted=css("--muted"), line=css("--line"), grid=css("--grid"), good=css("--good"), bad=css("--bias"), dist=css("--dist"), pop=css("--pop"), ink=css("--ink");
+  if (!m){ ctx.fillStyle=muted; ctx.font="500 14px "+css("--f-body"); ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("No intervals yet. Load or paste the class responses.", w/2, h/2); return; }
+  let lo = Math.min(...rows.map(r=>r.L)), hi = Math.max(...rows.map(r=>r.U));
+  if (showMu){ lo = Math.min(lo, mu); hi = Math.max(hi, mu); }
+  const padX = (hi-lo)*0.06 || 5000; lo -= padX; hi += padX;
+  const pl = 34, pr = 14, top = 30, axisY = h - 30;
+  const X = v => pl + (v-lo)/(hi-lo)*(w-pl-pr);
+  ctx.font="11px "+css("--f-mono"); ctx.textAlign="center"; ctx.textBaseline="top";
+  for (const tk of niceTicks(lo,hi,Math.max(3,Math.floor(w/110)))){ const x=X(tk); if (x<pl+10||x>w-pr-10) continue;
+    ctx.strokeStyle=grid; ctx.beginPath(); ctx.moveTo(x+.5, top-6); ctx.lineTo(x+.5, axisY); ctx.stroke(); ctx.fillStyle=muted; ctx.fillText(kaxis(tk), x, axisY+6); }
+  ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(pl, axisY+.5); ctx.lineTo(w-pr, axisY+.5); ctx.stroke();
+  if (showMu){
+    const xm = X(mu); ctx.save(); ctx.strokeStyle=pop; ctx.lineWidth=2; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(xm, top-14); ctx.lineTo(xm, axisY); ctx.stroke(); ctx.restore();
+    ctx.fillStyle=pop; ctx.font="600 12px "+css("--f-body"); ctx.textBaseline="bottom"; ctx.textAlign = xm > w*.62 ? "right" : "left"; ctx.fillText("μ = "+money(mu), xm + (xm > w*.62 ? -6 : 6), top-4);
+  }
+  const lw = rowH >= 12 ? 3 : 2, dot = rowH >= 12 ? 3.5 : 2.5;
+  rows.forEach((r,k) => {
+    const y = top + 6 + k*rowH + rowH/2;
+    const hit = r.L <= mu && mu <= r.U, col = showMu ? (hit ? good : bad) : dist;
+    ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(X(r.L), y); ctx.lineTo(X(r.U), y); ctx.stroke();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X((r.L+r.U)/2), y, dot, 0, Math.PI*2); ctx.fill();
+    if (rowH >= 12 && (k+1) % (rowH>=16 ? 1 : 5) === 0){ ctx.fillStyle=muted; ctx.font="10.5px "+css("--f-mono"); ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.fillText(String(k+1), pl-6, y); }
+  });
+}
+function renderClass(){
+  const m = K.rows.length, mu = POP.mean_price.theta, hits = K.rows.filter(r => r.L <= mu && mu <= r.U).length, showMu = $("clsShowMu").checked;
+  $("clsBadge").innerHTML = K.source === "demo" ? `<span class="badge demo">example data · simulated class</span>` : `<span class="badge ok">${K.source === "sheet" ? "live from your sheet" : "pasted responses"}</span>`;
+  $("clsTag").textContent = `${nf.format(m)} interval${m===1?"":"s"}`;
+  if (!m) $("clsSum").innerHTML = "";
+  else if (showMu){
+    const p = hits/m*100;
+    $("clsSum").innerHTML = `<span class="big good">${nf.format(hits)}</span><span>of ${nf.format(m)} intervals captured μ</span><span class="big">${p.toFixed(1)}%</span><span>capture rate</span><span class="big bad">${nf.format(m-hits)}</span><span>missed</span>`;
+  } else $("clsSum").innerHTML = `<span class="big">${nf.format(m)}</span><span>intervals submitted. Tick "Show μ" to reveal which ones capture the population mean.</span>`;
+  $("clsLegend").innerHTML = showMu
+    ? `<span><i class="sw line" style="border-color:var(--good)"></i>captures μ</span><span><i class="sw line" style="border-color:var(--bias)"></i>misses μ</span><span><i class="sw dash" style="border-color:var(--pop)"></i>population mean μ</span><span>● = sample mean x̄</span>`
+    : `<span><i class="sw line" style="border-color:var(--dist)"></i>one student's 95% interval</span><span>● = sample mean x̄</span>`;
+  $("clsSkipped").textContent = (K.source === "demo" ? "These 40 intervals were simulated in your browser from samples of 1,000 flats, to show what a class result looks like. Load your sheet to replace them. " : "")
+    + (K.skipped ? `${K.skipped} response${K.skipped===1?" was":"s were"} skipped because the bounds were missing or not valid prices.` : "");
+  drawClass();
+}
+$("clsLoad").onclick = loadClassCSV;
+$("clsDemo").onclick = () => { setClassData(demoRows(), "demo", 0); clsStatus("Showing a new simulated class of 40 intervals."); };
+$("clsUsePaste").onclick = () => {
+  try { const {rows, skipped} = rowsFromTable(parseDelimited($("clsPaste").value)); setClassData(rows, "paste", skipped); clsStatus(`Using ${rows.length} pasted interval${rows.length===1?"":"s"}.`); }
+  catch(e){ clsStatus(e.message); }
+};
+$("clsShowMu").onchange = renderClass;
+$("clsSort").onchange = renderClass;
+$("clsAuto").onchange = e => {
+  clearInterval(K.timer); K.timer = null;
+  if (e.target.checked){
+    if (!$("clsUrl").value.trim()){ clsStatus("Paste the published CSV link first, then turn on auto-refresh."); e.target.checked = false; return; }
+    loadClassCSV(); K.timer = setInterval(() => { if (ACTIVE === "class") loadClassCSV(); }, 15000);
+  }
+};
+(function initClass(){
+  let saved = ""; try { saved = localStorage.getItem("hdbClassUrl") || ""; } catch(e){}
+  $("clsUrl").value = CLASS_CSV_URL || saved;
+  K.rows = demoRows(); K.source = "demo";
+})();
+
 /* ---------- tabs ---------- */
 let ACTIVE = "dist";
 function showTab(name){
   ACTIVE = name;
-  for (const k of ["dist","ci","chi"]){ $("tab-"+k).hidden = k!==name; $("tabbtn-"+k).setAttribute("aria-selected", k===name ? "true":"false"); }
+  for (const k of ["dist","ci","chi","class"]){ $("tab-"+k).hidden = k!==name; $("tabbtn-"+k).setAttribute("aria-selected", k===name ? "true":"false"); }
   try { history.replaceState(null, "", "#" + (name==="dist" ? "sampling" : name)); } catch(e){}
   rerender();
 }
 $("tabbtn-dist").onclick = () => showTab("dist");
 $("tabbtn-ci").onclick = () => showTab("ci");
 $("tabbtn-chi").onclick = () => showTab("chi");
-function rerender(){ if (ACTIVE==="ci") renderCI(); else if (ACTIVE==="chi") renderChi(); else renderAll(); }
+$("tabbtn-class").onclick = () => showTab("class");
+function rerender(){ if (ACTIVE==="ci") renderCI(); else if (ACTIVE==="chi") renderChi(); else if (ACTIVE==="class") renderClass(); else renderAll(); }
 
 let rt; const later = ()=>{ clearTimeout(rt); rt=setTimeout(rerender,60); };
 window.addEventListener("resize", later);
-if (window.ResizeObserver){ const ro = new ResizeObserver(later); ro.observe($("cvDist")); ro.observe($("cvCILine")); ro.observe($("cvMosO")); ro.observe($("cvChiCurve")); }
+if (window.ResizeObserver){ const ro = new ResizeObserver(later); ro.observe($("cvDist")); ro.observe($("cvCILine")); ro.observe($("cvMosO")); ro.observe($("cvChiCurve")); ro.observe($("cvClass")); }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
 new MutationObserver(rerender).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerender);
 C.idx = sampleIdx(FRAMES.srs, C.n);
-showTab(location.hash === "#ci" ? "ci" : location.hash === "#chi" ? "chi" : "dist");
+showTab({"#ci":"ci", "#chi":"chi", "#class":"class"}[location.hash] || "dist");
 </script>
 
 </body>
