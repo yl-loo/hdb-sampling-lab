@@ -470,9 +470,11 @@ table.hyp tr:last-child th,table.hyp tr:last-child td{border-bottom:0}
     <section class="panel">
       <div class="phead"><h2>One-sample t-test</h2><span class="eyebrow" style="text-transform:none;letter-spacing:.02em">μ₀ = $650,000</span></div>
       <ol class="steps" id="tsSteps"></ol>
-      <div class="col" style="gap:6px"><h3>p-value on the t-distribution (df = <span id="tsDf"></span>)</h3>
-        <canvas id="cvTsCurve" height="230" aria-label="t-distribution with both tails shaded"></canvas>
-        <div class="legend"><span><i class="sw" style="background:var(--dist)"></i>p-value: area in both tails beyond ±|t|</span><span><i class="sw dash" style="border-color:var(--bias)"></i>critical values ±t* (α = 0.05)</span></div>
+      <div class="col" style="gap:6px"><h3>Sampling distribution of x̄ if H₀ is true</h3>
+        <p class="hint" id="tsCurveSub"></p>
+        <canvas id="cvTsCurve" height="260" aria-label="Expected sampling distribution of the sample mean under the null hypothesis, with critical values and the observed sample mean"></canvas>
+        <div class="legend"><span><i class="sw" style="background:var(--bias);opacity:.25;border:1px solid var(--bias)"></i>rejection region (α = 0.05, 2.5% each side)</span><span><i class="sw dash" style="border-color:var(--bias)"></i>critical values</span><span><i class="sw" style="background:var(--dist)"></i>p-value: area beyond x̄ in both tails</span><span><i class="sw line" style="border-color:var(--samp)"></i>your sample mean x̄</span></div>
+        <span id="tsDf" hidden></span>
       </div>
       <p class="decision" id="tsDecision"></p>
       <p class="hint" id="tsCI"></p>
@@ -1351,44 +1353,66 @@ function drawTsSamp(R){
 }
 function drawTsCurve(R){
   const cv=$("cvTsCurve"); const {ctx,w,h}=prep(cv);
-  const at = Math.abs(R.t), tc = R.tc, off = at > 6;
-  const xr = off ? 4.5 : Math.max(4, Math.ceil(at + 1));
-  const f = frame(ctx,w,h,-xr,xr,0.45,v=>String(v),v=>v.toFixed(1),{t:44,l:36});
-  const base=f.Y(0), ink=css("--ink"), dist=css("--dist"), bias=css("--bias"), muted=css("--muted"), surf=css("--surface");
-  const yAt = x => f.Y(tpdf(x, R.df));
-  if (!off){
-    ctx.fillStyle=dist; ctx.globalAlpha=.55;
-    for (const side of [-1,1]){ ctx.beginPath(); const a = side*at, b = side*xr; ctx.moveTo(f.X(a), base);
-      for (let k=0;k<=200;k++){ const x = a + (b-a)*k/200; ctx.lineTo(f.X(x), yAt(x)); } ctx.lineTo(f.X(b), base); ctx.closePath(); ctx.fill(); }
-    ctx.globalAlpha=1;
-  }
+  const se = R.se, df = R.df, tc = R.tc, lo0 = MU0 - tc*se, hi0 = MU0 + tc*se;
+  const at = Math.abs(R.t), off = at > 5.5;
+  const half = (off ? 4.5 : Math.max(4, at + 0.8)) * se;
+  const xlo = MU0 - half, xhi = MU0 + half;
+  const dens = x => tpdf((x - MU0)/se, df);           // in t units; same shape, y axis hidden
+  const ymax = tpdf(0, df) * 1.12;
+  const pad = {l:14, r:14, t:58, b:44};
+  const X = v => pad.l + (v - xlo)/(xhi - xlo)*(w - pad.l - pad.r);
+  const Y = d => h - pad.b - d/ymax*(h - pad.t - pad.b);
+  const base = Y(0);
+  const ink=css("--ink"), dist=css("--dist"), bias=css("--bias"), muted=css("--muted"), surf=css("--surface"), samp=css("--samp"), line=css("--line"), grid=css("--grid");
+  const fillArea = (a, b, color, alpha) => { if (b <= a) return; ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(X(a), base);
+    for (let k=0;k<=160;k++){ const x = a + (b-a)*k/160; ctx.lineTo(X(x), Y(dens(x))); } ctx.lineTo(X(b), base); ctx.closePath(); ctx.fill(); ctx.restore(); };
+  // axis + ticks in dollars
+  ctx.strokeStyle=line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad.l, base+.5); ctx.lineTo(w-pad.r, base+.5); ctx.stroke();
+  ctx.font="11px "+css("--f-mono"); ctx.fillStyle=muted; ctx.textAlign="center"; ctx.textBaseline="top";
+  for (const tk of niceTicks(xlo, xhi, Math.max(3, Math.floor(w/100)))){ const x=X(tk); if (x < pad.l+16 || x > w-pad.r-16) continue;
+    ctx.strokeStyle=grid; ctx.beginPath(); ctx.moveTo(x+.5, pad.t-6); ctx.lineTo(x+.5, base); ctx.stroke();
+    ctx.fillStyle=muted; ctx.fillText(kaxis(tk), x, base+6); }
+  // rejection regions
+  fillArea(xlo, lo0, bias, .22); fillArea(hi0, xhi, bias, .22);
+  // p-value tails (beyond x̄ and its mirror)
+  if (!off){ const d = Math.abs(R.xbar - MU0); fillArea(xlo, MU0 - d, dist, .5); fillArea(MU0 + d, xhi, dist, .5); }
+  // curve
   ctx.strokeStyle=ink; ctx.lineWidth=2; ctx.beginPath();
-  for (let k=0;k<=600;k++){ const x=-xr+2*xr*k/600; k ? ctx.lineTo(f.X(x),yAt(x)) : ctx.moveTo(f.X(x),yAt(x)); } ctx.stroke();
-  ctx.font="500 11px "+css("--f-mono"); ctx.textBaseline="bottom";
-  for (const s of [-1,1]){ const x=f.X(s*tc); ctx.save(); ctx.strokeStyle=bias; ctx.lineWidth=1.5; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(x, f.pad.t-8); ctx.lineTo(x, base); ctx.stroke(); ctx.restore();
-    ctx.fillStyle=bias; ctx.textAlign = s<0 ? "right" : "left"; ctx.fillText((s<0?"−":"+")+tc.toFixed(3), x + (s<0?-4:4), f.pad.t-10); }
+  for (let k=0;k<=600;k++){ const x = xlo + (xhi-xlo)*k/600; k ? ctx.lineTo(X(x), Y(dens(x))) : ctx.moveTo(X(x), Y(dens(x))); } ctx.stroke();
+  // centre μ0
+  ctx.save(); ctx.strokeStyle=ink; ctx.lineWidth=1; ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(X(MU0), Y(dens(MU0))); ctx.lineTo(X(MU0), base); ctx.stroke(); ctx.restore();
+  ctx.fillStyle=ink; ctx.font="600 11.5px "+css("--f-body"); ctx.textAlign="center"; ctx.textBaseline="top"; ctx.fillText("μ₀ = $650,000", X(MU0), base+22);
+  // observed x̄ line first, labels after so they sit on top
+  if (!off){ const xb = X(R.xbar); ctx.strokeStyle=samp; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(xb, pad.t-50); ctx.lineTo(xb, base); ctx.stroke(); }
+  // critical values
+  const label = (txt, x, y, align, color, font) => { ctx.font = font; const tw = ctx.measureText(txt).width;
+    let lx = align==="right" ? x - tw : x; lx = Math.max(2, Math.min(w - tw - 2, lx));
+    ctx.fillStyle = surf; ctx.fillRect(lx-3, y-1, tw+6, 16); ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(txt, lx, y); return [lx, lx+tw]; };
+  for (const [v, s] of [[lo0,-1],[hi0,1]]){ const x=X(v);
+    ctx.save(); ctx.strokeStyle=bias; ctx.lineWidth=1.75; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(x, pad.t-30); ctx.lineTo(x, base); ctx.stroke(); ctx.restore();
+    label(money(v), s<0 ? x-4 : x+4, pad.t-30, s<0 ? "right" : "left", bias, "600 11.5px "+css("--f-mono"));
+    ctx.fillStyle=bias; ctx.font="500 10.5px "+css("--f-body"); ctx.textAlign="center"; ctx.textBaseline="bottom"; ctx.fillText("2.5%", X(s<0 ? (xlo+lo0)/2 : (hi0+xhi)/2), base-4); }
   if (!off){
-    const xt = f.X(R.t), xm = f.X(-R.t);
-    ctx.strokeStyle=dist; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(xt, f.pad.t-26); ctx.lineTo(xt, base); ctx.stroke();
-    ctx.save(); ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(xm, f.pad.t+4); ctx.lineTo(xm, base); ctx.stroke(); ctx.restore();
-    ctx.fillStyle=dist; ctx.font="600 12px "+css("--f-body"); ctx.textBaseline="bottom"; ctx.textAlign = R.t >= 0 ? "left" : "right";
-    ctx.fillText(`t = ${R.t.toFixed(3)}`, xt + (R.t>=0?6:-6), f.pad.t-28);
-    const lab = `p-value = ${pfmt(R.p)} (both tails)`; ctx.font="600 12.5px "+css("--f-body"); const tw=ctx.measureText(lab).width;
-    const lx = Math.max(f.pad.l+4, Math.min(w-16-tw, f.X(0) - tw/2)), ly = f.pad.t + 18;
-    ctx.fillStyle=surf; ctx.fillRect(lx-4, ly-10, tw+8, 20); ctx.fillStyle=dist; ctx.textAlign="left"; ctx.textBaseline="middle"; ctx.fillText(lab, lx, ly);
+    const xb = X(R.xbar), right = R.xbar >= MU0, f12 = "600 12px "+css("--f-body");
+    ctx.font = f12; const txt = `x̄ = ${money(R.xbar)}`, tw = ctx.measureText(txt).width;
+    const goRight = right ? (xb + 6 + tw <= w - 2) : (xb - 6 - tw < 2);
+    label(txt, goRight ? xb + 6 : xb - 6, pad.t-52, goRight ? "left" : "right", samp, f12);
+    const plab = `p-value = ${pfmt(R.p)}`; ctx.font = f12; const pw = ctx.measureText(plab).width;
+    label(plab, right ? pad.l : w - pad.r, pad.t-52, right ? "left" : "right", dist, f12);
   } else {
-    ctx.fillStyle=dist; ctx.font="600 12px "+css("--f-body"); ctx.textAlign = R.t>0 ? "right" : "left"; ctx.textBaseline="middle";
-    const xx = R.t>0 ? w-14 : f.pad.l+6;
-    ctx.fillText(R.t>0 ? `t = ${R.t.toFixed(2)} is far off the chart →` : `← t = ${R.t.toFixed(2)} is far off the chart`, xx, f.pad.t+14);
-    ctx.fillStyle=muted; ctx.font="500 11.5px "+css("--f-body"); ctx.fillText(`The area beyond it is tiny: p-value ${pfmt(R.p)}`, xx, f.pad.t+32);
+    const right = R.xbar > MU0, xx = right ? w-pad.r : pad.l;
+    ctx.fillStyle=samp; ctx.font="600 12px "+css("--f-body"); ctx.textAlign = right ? "right" : "left"; ctx.textBaseline="top";
+    ctx.fillText(right ? `x̄ = ${money(R.xbar)} is far off the chart →` : `← x̄ = ${money(R.xbar)} is far off the chart`, xx, pad.t-52);
+    ctx.fillStyle=muted; ctx.font="500 11.5px "+css("--f-body"); ctx.fillText(`It is deep in the rejection region: p-value ${pfmt(R.p)}`, xx, pad.t-34);
   }
-  ctx.fillStyle=muted; ctx.font="11px "+css("--f-body"); ctx.textAlign="right"; ctx.textBaseline="bottom"; ctx.fillText("t value", w-12, base-4);
 }
+
 function renderTest(){
   if (!T.idx) return;
   const R = tsStats();
   $("tsTag").textContent = `n = ${nf.format(R.n)} flats`; $("tsDf").textContent = nf.format(R.df);
   drawTsSamp(R); drawTsCurve(R);
+  $("tsCurveSub").textContent = `If the claim is true, sample means of ${nf.format(R.n)} flats would pile up around $650,000 with standard error ${money(R.se)}. Sample means beyond the critical values (${money(MU0 - R.tc*R.se)} and ${money(MU0 + R.tc*R.se)}) would happen only 5% of the time, so they count as evidence against H₀.`;
   $("tsSummary").innerHTML = `<table class="ct"><tbody>
     <tr><td>Sample size n</td><td>${nf.format(R.n)}</td></tr>
     <tr><td>Sample mean x̄</td><td>${money2(R.xbar)}</td></tr>
@@ -1400,7 +1424,7 @@ function renderTest(){
       step(1, "Standard error", `SE = s / √n = ${money2(R.s)} / √${nf.format(R.n)}`, money2(R.se))
     + step(2, "Test statistic", `t = (x̄ − μ₀) / SE = (${money2(R.xbar)} − ${money(MU0)}) / ${money2(R.se)}`, R.t.toFixed(3))
     + step(3, "Degrees of freedom", `df = n − 1 = ${nf.format(R.n)} − 1`, nf.format(R.df))
-    + step(4, "p-value (two-tailed)", `p = 2 × P(T ≥ ${Math.abs(R.t).toFixed(3)}) with df = ${nf.format(R.df)}. Critical values at α = 0.05 are ±${tc}.`, pfmt(R.p), "final");
+    + step(4, "p-value (two-tailed)", `p = 2 × P(T ≥ ${Math.abs(R.t).toFixed(3)}) with df = ${nf.format(R.df)}. Critical values at α = 0.05 are t = ±${tc}, which on the price scale are $650,000 ± ${tc} × ${money2(R.se)} = ${money(MU0 - R.tc*R.se)} and ${money(MU0 + R.tc*R.se)}.`, pfmt(R.p), "final");
   const sig = R.p < 0.05;
   $("tsDecision").innerHTML = sig
     ? `Since p &lt; 0.05, there is sufficient evidence to reject the null hypothesis. The mean resale price of all HDB flats transacted in Singapore in 2025 is not $650,000.`
